@@ -3,8 +3,11 @@ Projet de reconnaissance faciale
 
 # Requis
 cmake:
-  OSX : brew install cmake
-
+  OSX :
+  ```bash
+    brew install cmake
+    brew install opencv
+  ```
 # Compilation
 mkdir build
 cd build
