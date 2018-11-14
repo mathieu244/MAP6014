@@ -11,7 +11,7 @@ cmake:
 # Compilation
 mkdir build
 cd build
-cmake .
+cmake ..
 cmake --build . --config Release
 
 Crédit:
