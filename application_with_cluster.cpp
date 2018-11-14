@@ -14,7 +14,6 @@ using namespace cv;
 
 using namespace dlib;
 using namespace std;
-#include <unistd.h>
 
 // ----------------------------------------------------------------------------------------
 
@@ -65,19 +64,6 @@ std::vector<matrix<rgb_pixel>> jitter_image(
 
 // ----------------------------------------------------------------------------------------
 
-
-int parseInt(char* chars)
-{
-    int sum = 0;
-    int len = strlen(chars);
-    for (int x = 0; x < len; x++)
-    {
-        int n = chars[len - (x + 1)] - '0';
-        sum = sum + pow(n, x);
-    }
-    return sum;
-}
-
 int main(int argc, char** argv) try
 {
   //--------
@@ -112,7 +98,7 @@ int main(int argc, char** argv) try
   std::vector<matrix<rgb_pixel>> faces_cumul;
   matrix<rgb_pixel> img;
   Mat cv_img;
-system("stty raw");//seting the terminal in raw mode
+
   while (true) {
 
     //--------
@@ -205,19 +191,8 @@ system("stty raw");//seting the terminal in raw mode
           win_clusters[cluster_id].set_title("face cluster " + cast_to_string(cluster_id));
           win_clusters[cluster_id].set_image(tile_images(temp));
       }
-
-      int microseconds = 50000;
-
-      if (argc == 2)
-      {
-          microseconds = parseInt(argv[1]);
-          waitKey(microseconds);
-      }else{
-        cout << "hit enter refresh" << endl;
-        cin.get();
-      }
-
-
+      cout << "hit enter refresh" << endl;
+      cin.get();
     }
 
   }
@@ -262,4 +237,5 @@ std::vector<matrix<rgb_pixel>> jitter_image(
 
     return crops;
 }
+
 // ----------------------------------------------------------------------------------------
