@@ -63,23 +63,15 @@ std::vector<matrix<rgb_pixel>> jitter_image(
     const matrix<rgb_pixel>& img
 );
 
+int parseInt(char* chars);
+
 // ----------------------------------------------------------------------------------------
 
 
-int parseInt(char* chars)
-{
-    int sum = 0;
-    int len = strlen(chars);
-    for (int x = 0; x < len; x++)
-    {
-        int n = chars[len - (x + 1)] - '0';
-        sum = sum + pow(n, x);
-    }
-    return sum;
-}
 
 int main(int argc, char** argv) try
 {
+
   //--------
   // Ouvrir la camera
   //--------
@@ -110,9 +102,20 @@ int main(int argc, char** argv) try
   //--------
   std::vector<matrix<float,0,1>> face_descriptors_cumul;
   std::vector<matrix<rgb_pixel>> faces_cumul;
-  matrix<rgb_pixel> img;
+  //matrix<rgb_pixel> img;
   Mat cv_img;
-system("stty raw");//seting the terminal in raw mode
+
+  // Nombre de cluster affiché maximal (pour éviter le rafraichissement)
+  std::vector<image_window> win_clusters(10);
+
+  stream1.read(cv_img);
+  dlib::cv_image<rgb_pixel> img(cv_img); //Conversion d'une image openCV en structure dlib
+
+  //--------
+  // Affichage de l'image à l'écran
+  //--------
+  image_window win(img);
+  //std::vector<image_window> win_clusters(0);
   while (true) {
 
     //--------
@@ -126,8 +129,8 @@ system("stty raw");//seting the terminal in raw mode
     //--------
     // Affichage de l'image à l'écran
     //--------
-    image_window win(img);
-
+    win.clear_overlay();
+    win.set_image(img);
     //--------
     // Détection des visages et extraction du visage normalisé à une résolution de 150X150
     // Affiche une trace des visages trouvé
@@ -193,7 +196,8 @@ system("stty raw");//seting the terminal in raw mode
 
       // Now let's display the face clustering results on the screen.  You will see that it
       // correctly grouped all the faces.
-      std::vector<image_window> win_clusters(num_clusters);
+      //std::vector<image_window> win_clusters(num_clusters);
+
       for (size_t cluster_id = 0; cluster_id < num_clusters; ++cluster_id)
       {
           std::vector<matrix<rgb_pixel>> temp;
@@ -261,5 +265,17 @@ std::vector<matrix<rgb_pixel>> jitter_image(
         crops.push_back(jitter_image(img,rnd));
 
     return crops;
+}
+
+int parseInt(char* chars)
+{
+    int sum = 0;
+    int len = strlen(chars);
+    for (int x = 0; x < len; x++)
+    {
+        int n = chars[len - (x + 1)] - '0';
+        sum = sum + pow(n, x);
+    }
+    return sum;
 }
 // ----------------------------------------------------------------------------------------
