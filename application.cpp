@@ -59,15 +59,15 @@ using anet_type = loss_metric<fc_no_bias<128,avg_pool_everything<
 
 // ----------------------------------------------------------------------------------------
 
-std::vector<matrix<rgb_pixel>> jitter_image(
-    const matrix<rgb_pixel>& img
-);
-
 int parseInt(char* chars);
 
 // ----------------------------------------------------------------------------------------
 
-
+enum { CAP_MODE_BGR  = 0, // BGR24 (default)
+       CAP_MODE_RGB  = 1, // RGB24
+       CAP_MODE_GRAY = 2, // Y8
+       CAP_MODE_YUYV = 3  // YUYV
+     };
 
 int main(int argc, char** argv) try
 {
@@ -78,51 +78,51 @@ int main(int argc, char** argv) try
   VideoCapture stream1(0);   //0 is the id of video device.0 if you have only one camera.
 
   if (!stream1.isOpened()) { //check if video device has been initialised
-    cout << "cannot open camera";
+    cout << "Impossible d'ouvrir la caméra";
     return 1;
   }
+
+  // Configurations de la résolution de la caméra
+  //  stream1.set(CV_CAP_PROP_MODE, CV_CAP_MODE_YUYV);
+  //  stream1.set(CV_CAP_PROP_FRAME_HEIGHT, 1080);
+  //  stream1.set(CV_CAP_PROP_FRAME_WIDTH, 1920);
 
   //--------
   // Chargement des réseaux de neuronnes pré-entrainé afin d'effectuer la détection de visage
   //--------
 
-  // The first thing we are going to do is load all our models.  First, since we need to
-  // find faces in the image we will need a face detector:
+  // Face detector
   frontal_face_detector detector = get_frontal_face_detector();
-  // We will also use a face landmarking model to align faces to a standard pose:  (see face_landmark_detection_ex.cpp for an introduction)
+  // Face landmarking model pour aligner les visages:  (see face_landmark_detection_ex.cpp for an introduction)
   shape_predictor sp;
   deserialize("../shape_predictor_5_face_landmarks.dat") >> sp;
-  // And finally we load the DNN responsible for face recognition.
+  // DNN pour l'extraction du vecteur des points d'intérêt
   anet_type net;
   deserialize("../dlib_face_recognition_resnet_model_v1.dat") >> net;
-
 
   //--------
   // Définition des variables de cumul pendant la saisi et l'analyse
   //--------
   std::vector<matrix<float,0,1>> face_descriptors_cumul;
   std::vector<matrix<rgb_pixel>> faces_cumul;
-  //matrix<rgb_pixel> img;
   Mat cv_img;
 
   // Nombre de cluster affiché maximal (pour éviter le rafraichissement)
   std::vector<image_window> win_clusters(10);
 
   stream1.read(cv_img);
+  // Cette ligne va échouer si la caméra retourne une image vide (camera inactive)
   dlib::cv_image<rgb_pixel> img(cv_img); //Conversion d'une image openCV en structure dlib
 
   //--------
   // Affichage de l'image à l'écran
   //--------
   image_window win(img);
-  //std::vector<image_window> win_clusters(0);
   while (true) {
 
     //--------
     // Capture de l'image sur la webcam
     //--------
-
-
     stream1.read(cv_img);
     dlib::cv_image<rgb_pixel> img(cv_img); //Conversion d'une image openCV en structure dlib
 
@@ -131,14 +131,11 @@ int main(int argc, char** argv) try
     //--------
     win.clear_overlay();
     win.set_image(img);
+
     //--------
-    // Détection des visages et extraction du visage normalisé à une résolution de 150X150
+    // Détection des visages et extraction du visage normalisé à une résolution de 150X150, normalisé et centré
     // Affiche une trace des visages trouvé
     //--------
-
-    // Run the face detector on the image of our action heroes, and for each face extract a
-    // copy that has been normalized to 150x150 pixels in size and appropriately rotated
-    // and centered.
     std::vector<matrix<rgb_pixel>> faces;
     for (auto face : detector(img))
     {
@@ -146,36 +143,26 @@ int main(int argc, char** argv) try
         matrix<rgb_pixel> face_chip;
         extract_image_chip(img, get_face_chip_details(shape,150,0.25), face_chip);
         faces.push_back(move(face_chip));
-        // Also put some boxes on the faces so we can see that the detector is finding
-        // them.
+        // Encadré pour l'apercu
         win.add_overlay(face);
     }
 
     if (faces.size() == 0)
     {
-        cout << "No faces found in image!" << endl;
-        //return 1;
+        cout << "Aucun visage sur l'image!" << endl;
     }else{
       //--------
-      // Conversion des visage en vecteur 128D
-      // Cumul des vecteurs pour une reconnaissance globale
+      // Conversion des visage en vecteur 128D par le DNN
+      // Chacun des vecteurs permet d'identifier un individu.
+      // Lorsque 2 vecteurs sont proches, il s'agit de la même personne
       //--------
-
-      // This call asks the DNN to convert each face image in faces into a 128D vector.
-      // In this 128D vector space, images from the same person will be close to each other
-      // but vectors from different people will be far apart.  So we can use these vectors to
-      // identify if a pair of images are from the same person or from different people.
       std::vector<matrix<float,0,1>> face_descriptors = net(faces);
       faces_cumul.insert( faces_cumul.end(), faces.begin(), faces.end() );
       face_descriptors_cumul.insert( face_descriptors_cumul.end(), face_descriptors.begin(), face_descriptors.end() );
 
       //--------
-      // Creation d'un graph pour regrouper les visages
+      // Creation d'un graph pour regrouper les visages et calcul du nombre différente de personnes
       //--------
-
-      // In particular, one simple thing we can do is face clustering.  This next bit of code
-      // creates a graph of connected faces and then uses the Chinese whispers graph clustering
-      // algorithm to identify how many people there are and which faces belong to whom.
       std::vector<sample_pair> edges;
       for (size_t i = 0; i < face_descriptors_cumul.size(); ++i)
       {
@@ -190,14 +177,11 @@ int main(int argc, char** argv) try
           }
       }
       std::vector<unsigned long> labels;
-      const auto num_clusters = chinese_whispers(edges, labels);
-      // This will correctly indicate that there are 4 people in the image.
-      cout << "number of people found in the cluster: "<< num_clusters << endl;
+      const auto num_clusters = chinese_whispers(edges, labels); // Variante de l'algorithme de Markov-Chain-Clustering
+      // On affiche le nombre total de personnes différente présente dans le cluster
+      cout << "nombre de personne trouvée dans le cluster: "<< num_clusters << endl;
 
-      // Now let's display the face clustering results on the screen.  You will see that it
-      // correctly grouped all the faces.
-      //std::vector<image_window> win_clusters(num_clusters);
-
+      // Affichage des visages dans leur cluster (fenêtre) respectif
       for (size_t cluster_id = 0; cluster_id < num_clusters; ++cluster_id)
       {
           std::vector<matrix<rgb_pixel>> temp;
@@ -206,7 +190,7 @@ int main(int argc, char** argv) try
               if (cluster_id == labels[j])
                   temp.push_back(faces_cumul[j]);
           }
-          win_clusters[cluster_id].set_title("face cluster " + cast_to_string(cluster_id));
+          win_clusters[cluster_id].set_title("Cluster #" + cast_to_string(cluster_id));
           win_clusters[cluster_id].set_image(tile_images(temp));
       }
 
@@ -217,31 +201,15 @@ int main(int argc, char** argv) try
           microseconds = parseInt(argv[1]);
           waitKey(microseconds);
       }else{
-        cout << "hit enter refresh" << endl;
+        cout << "face descriptor for one face: " << trans(face_descriptors[0]) << endl;
+        cout << "appuyer sur enter pour continuer" << endl;
         cin.get();
       }
-
-
     }
 
   }
 
-
-  // Finally, let's print one of the face descriptors to the screen.
-  //cout << "face descriptor for one face: " << trans(face_descriptors[0]) << endl;
-
-  // It should also be noted that face recognition accuracy can be improved if jittering
-  // is used when creating face descriptors.  In particular, to get 99.38% on the LFW
-  // benchmark you need to use the jitter_image() routine to compute the descriptors,
-  // like so:
-  //matrix<float,0,1> face_descriptor = mean(mat(net(jitter_image(faces[0]))));
-  //cout << "jittered face descriptor for one face: " << trans(face_descriptor) << endl;
-  // If you use the model without jittering, as we did when clustering the bald guys, it
-  // gets an accuracy of 99.13% on the LFW benchmark.  So jittering makes the whole
-  // procedure a little more accurate but makes face descriptor calculation slower.
-
-
-  cout << "hit enter to terminate" << endl;
+  cout << "appuyer sur enter pour terminer" << endl;
   cin.get();
 }
 catch (std::exception& e)
@@ -250,22 +218,6 @@ catch (std::exception& e)
 }
 
 // ----------------------------------------------------------------------------------------
-
-std::vector<matrix<rgb_pixel>> jitter_image(
-    const matrix<rgb_pixel>& img
-)
-{
-    // All this function does is make 100 copies of img, all slightly jittered by being
-    // zoomed, rotated, and translated a little bit differently. They are also randomly
-    // mirrored left to right.
-    thread_local dlib::rand rnd;
-
-    std::vector<matrix<rgb_pixel>> crops;
-    for (int i = 0; i < 100; ++i)
-        crops.push_back(jitter_image(img,rnd));
-
-    return crops;
-}
 
 int parseInt(char* chars)
 {
