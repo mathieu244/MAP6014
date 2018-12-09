@@ -20,5 +20,5 @@ OSX :
   cmake --build . --config Release
 ```
 
-Crédit:
+Base de développement:
 http://blog.dlib.net/2017/02/high-quality-face-recognition-with-deep.html

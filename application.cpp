@@ -1,3 +1,11 @@
+/*
+#################################################################################
+#  Université: UQTR
+#  Professeur: François Meunier
+#  Cours: MAP6014
+#  Création: Jessica Bélisle, Mathieu St-Yves
+#################################################################################
+*/
 #include <dlib/dnn.h>
 #include <dlib/gui_widgets.h>
 #include <dlib/clustering.h>
@@ -137,6 +145,7 @@ int main(int argc, char** argv) try
     // Affiche une trace des visages trouvé
     //--------
     std::vector<matrix<rgb_pixel>> faces;
+
     for (auto face : detector(img))
     {
         auto shape = sp(img, face);
@@ -146,7 +155,6 @@ int main(int argc, char** argv) try
         // Encadré pour l'apercu
         win.add_overlay(face);
     }
-
     if (faces.size() == 0)
     {
         cout << "Aucun visage sur l'image!" << endl;
