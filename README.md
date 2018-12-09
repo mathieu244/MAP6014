@@ -7,6 +7,7 @@ cmake:
   ```bash
     brew install cmake
     brew install opencv
+    brew install xquartz
   ```
 # Compilation
 mkdir build
