@@ -3,9 +3,10 @@ Projet de reconnaissance faciale
 
 # Requis
 OSX :
+  <br />
   Brew:
   https://brew.sh/index_fr
-  
+
   ```bash
     brew install cmake
     brew install opencv
